@@ -152,7 +152,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="YLogger.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="YLogger.h" />
