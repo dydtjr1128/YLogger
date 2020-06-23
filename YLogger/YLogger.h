@@ -2,10 +2,14 @@
 #define YLOGGER_H
 
 #include <chrono>
+#include <condition_variable>
 #include <filesystem>
 #include <functional>
+#include <mutex>
+#include <queue>
 #include <thread>
 #include <unordered_map>
+#include <vector>
 
 namespace logger {
 
@@ -14,20 +18,81 @@ namespace logger {
 	}
 
 	enum class LoggerType {
-		ConsoleAppender,
+		ConsoleAppender = ConsoleAppender(),
 		FileAppender,
 		RollingFileAppender
 	};
 
+	enum class LogLevel {
+		Trace,
+		Debug,
+		Info,
+		Warn,
+		Error,
+		Fatal
+	};
+
+	class Appender {
+
+	};
+
+	class ConsoleAppender : public Appender {
+
+	};
+
+	class Log {
+	public:
+		explicit Log(LogLevel level, const std::string& log) :level_(level), log_(log) {};
+	private:
+		LogLevel level_;
+		std::string log_;
+	};
 
 	class YLogger {
 	public:
-		explicit YLogger(std::filesystem::path path = std::filesystem::current_path()) : path_(path) {}
-		~YLogger() {}
-	private:
-		std::filesystem::path path_;
-	};
+		explicit YLogger(std::filesystem::path savePath = std::filesystem::current_path()) : savePath_(savePath), finish_(false) {
+			std::thread(printThread);
+		}
+		~YLogger() {
+			finish_ = true;
+			log_cv.notify_all();
+		}
 
+		void Trace(std::string log) { pushLog(LogLevel::Trace, log); };
+		void Debug(std::string log) { pushLog(LogLevel::Debug, log); };
+		void Info(std::string log) { pushLog(LogLevel::Info, log); };
+		void Warn(std::string log) { pushLog(LogLevel::Warn, log); };
+		void Error(std::string log) { pushLog(LogLevel::Error, log); };
+		void Fatal(std::string log) { pushLog(LogLevel::Trace, log); };
+
+		void pushLog(LogLevel level, const std::string& log) {
+			std::unique_lock lock(logMutex_);
+			logQueue_.emplace(level, log);
+		}
+
+		void printThread() {
+			while (true) {
+				std::unique_lock lock(logMutex_);
+				log_cv.wait(lock, [&] {return !logQueue_.empty() || finish_; });
+
+				const Log& log = logQueue_.front();
+				logQueue_.pop();
+				lock.unlock();
+
+				for (const auto& action : logTypeVector_) {
+
+				}
+			}
+		}
+	private:
+		std::queue<Log> logQueue_;
+		std::vector<LoggerType> logTypeVector_;
+		std::filesystem::path savePath_;
+		std::mutex logMutex_;
+		std::condition_variable log_cv;
+
+		bool finish_;
+	};
 
 	enum class FileStatus {
 		Created,
