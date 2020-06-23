@@ -7,6 +7,7 @@
 #include <functional>
 #include <mutex>
 #include <queue>
+#include <sstream>
 #include <thread>
 #include <unordered_map>
 #include <vector>
@@ -18,31 +19,26 @@ namespace logger {
 	}
 
 	enum class LoggerType {
-		ConsoleAppender = ConsoleAppender(),
+		ConsoleAppender,
 		FileAppender,
 		RollingFileAppender
 	};
 
-	enum class LogLevel {
-		Trace,
+	enum class LogLevel : int {
+		Trace = 0,
 		Debug,
 		Info,
 		Warn,
 		Error,
 		Fatal
 	};
-
-	class Appender {
-
-	};
-
-	class ConsoleAppender : public Appender {
-
-	};
+	std::string logLevel[] = { "Trace", "Debug", "Info", "Warn", "Error", "Fatal" };
 
 	class Log {
 	public:
 		explicit Log(LogLevel level, const std::string& log) :level_(level), log_(log) {};
+		LogLevel level() const { return level_; }
+		std::string log() const { return log_; }
 	private:
 		LogLevel level_;
 		std::string log_;
@@ -79,8 +75,8 @@ namespace logger {
 				logQueue_.pop();
 				lock.unlock();
 
-				for (const auto& action : logTypeVector_) {
-
+				for (const auto& logger : logTypeVector_) {
+					//logger.action()
 				}
 			}
 		}
@@ -92,6 +88,25 @@ namespace logger {
 		std::condition_variable log_cv;
 
 		bool finish_;
+	};
+
+	class Appender {
+	public:
+		virtual void action(const Log& log) = 0;
+	private:
+	};
+
+	class ConsoleAppender : public Appender {
+	public:
+		void action(const Log& log) {
+			oss_.str("");
+			oss_.clear();
+
+			oss_ << "[" << logLevel[(int)log.level()] << "] [" << __func__ << "] : " << log.log() << std::endl;
+			std::cout << oss_.str();
+		}
+	private:
+		std::ostringstream oss_;
 	};
 
 	enum class FileStatus {
