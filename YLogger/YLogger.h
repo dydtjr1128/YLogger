@@ -44,59 +44,6 @@ namespace logger {
 		std::string log_;
 	};
 
-	class YLogger {
-	public:
-		explicit YLogger(std::filesystem::path savePath = std::filesystem::current_path()) : savePath_(savePath), finish_(false) {
-			std::thread(printThread);
-			ReadConfig();
-		}
-		~YLogger() {
-			finish_ = true;
-			log_cv.notify_all();
-		}
-
-		void Trace(std::string log) { pushLog(LogLevel::Trace, log); };
-		void Debug(std::string log) { pushLog(LogLevel::Debug, log); };
-		void Info(std::string log) { pushLog(LogLevel::Info, log); };
-		void Warn(std::string log) { pushLog(LogLevel::Warn, log); };
-		void Error(std::string log) { pushLog(LogLevel::Error, log); };
-		void Fatal(std::string log) { pushLog(LogLevel::Trace, log); };
-
-		void pushLog(LogLevel level, const std::string& log) {
-			std::unique_lock lock(logMutex_);
-			logQueue_.emplace(level, log);
-		}
-
-		void printThread() {
-			while (true) {
-				std::unique_lock lock(logMutex_);
-				log_cv.wait(lock, [&] {return !logQueue_.empty() || finish_; });
-
-				const Log& log = logQueue_.front();
-				logQueue_.pop();
-				lock.unlock();
-
-				for (const auto& appender : logTypeVector_) {
-					appender->action(log);
-				}
-			}
-		}
-	private:
-		std::queue<Log> logQueue_;
-		std::vector<std::unique_ptr<Appender>> logTypeVector_;
-		std::filesystem::path savePath_;
-		std::mutex logMutex_;
-		std::condition_variable log_cv;
-
-		bool finish_;
-
-		void ReadConfig() {
-			//파일 읽어서 설정 보고 맞는 appender 객체 생성 및 추가
-
-			logTypeVector_.emplace_back(std::make_unique<ConsoleAppender>());
-		}
-	};
-
 	class Appender {
 	public:
 		virtual void action(const Log& log) = 0;
@@ -115,6 +62,79 @@ namespace logger {
 	private:
 		std::ostringstream oss_;
 	};
+
+	class YLogger {
+	public:
+		explicit YLogger(std::filesystem::path savePath = std::filesystem::current_path()) : savePath_(savePath), finish_(false) {
+			loggingThread_ = std::thread([&] {
+				while (true) {
+					std::unique_lock lock(logMutex_);
+					log_cv.wait(lock, [&] {return !logQueue_.empty() || finish_; });
+
+					if (logQueue_.empty() && finish_)
+						break;					
+
+					const Log log = logQueue_.front();
+					logQueue_.pop();
+					lock.unlock();
+
+					for (const auto& appender : logTypeVector_) {
+						appender->action(log);
+					}
+				}
+				});
+			ReadConfig();
+		}
+		~YLogger() {
+			finish_ = true;
+			log_cv.notify_all();
+			loggingThread_.join();
+		}
+
+		void Trace(std::string log) { pushLog(LogLevel::Trace, log); };
+		void Debug(std::string log) { pushLog(LogLevel::Debug, log); };
+		void Info(std::string log) { pushLog(LogLevel::Info, log); };
+		void Warn(std::string log) { pushLog(LogLevel::Warn, log); };
+		void Error(std::string log) { pushLog(LogLevel::Error, log); };
+		void Fatal(std::string log) { pushLog(LogLevel::Trace, log); };
+
+		void pushLog(LogLevel level, const std::string& log) {
+			std::unique_lock lock(logMutex_);
+
+			logQueue_.emplace(level, log);
+		}
+
+		void print() {
+			while (true) {
+				std::unique_lock lock(logMutex_);
+				log_cv.wait(lock, [&] {return !logQueue_.empty() || finish_; });
+
+				const Log& log = logQueue_.front();
+				logQueue_.pop();
+				lock.unlock();
+
+				for (const auto& appender : logTypeVector_) {
+					appender->action(log);
+				}
+			}
+		}
+	private:
+		std::thread loggingThread_;
+		std::queue<Log> logQueue_;
+		std::vector<std::unique_ptr<Appender>> logTypeVector_;
+		std::filesystem::path savePath_;
+		std::mutex logMutex_;
+		std::condition_variable log_cv;
+
+		bool finish_;
+
+		void ReadConfig() {
+			//파일 읽어서 설정 보고 맞는 appender 객체 생성 및 추가
+
+			logTypeVector_.emplace_back(std::make_unique<ConsoleAppender>());
+		}
+	};
+
 
 	enum class FileStatus {
 		Created,
