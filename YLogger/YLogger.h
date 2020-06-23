@@ -42,30 +42,30 @@ namespace logger {
 			while (running_) {
 				std::this_thread::sleep_for(std::chrono::milliseconds(kDefaultFileWatchingTime));
 
-				for (auto& it : file_watching_map_) {
+				for (const auto& it : file_watching_map_) {
 					if (std::filesystem::exists(it.first) == false) {
-						function(it.first, FileStatus::Erased);
+						function(std::filesystem::path(it.first), FileStatus::Erased);
 					}
-					else if (it.second == std::filesystem::file_time_type::min() && std::filesystem::last_write_time(it.first) > it.second()) {
-						function(it.first, FileStatus::Created);
+					else if (it.second == std::filesystem::file_time_type::min() && std::filesystem::exists(it.first)) {
+						function(std::filesystem::path(it.first), FileStatus::Created);
 					}
-					else  {
-						function(it.first, FileStatus::Modified);
+					else if (it.second != std::filesystem::last_write_time(it.first)) {
+						function(std::filesystem::path(it.first), FileStatus::Modified);
 					}
 				}
 
 			}
 		}
 		void addPath(std::filesystem::path path) {
-			if (std::filesystem::exists(path)) {				
-				file_watching_map_[path] = std::filesystem::last_write_time(path);
+			if (std::filesystem::exists(path)) {
+				file_watching_map_[path.string()] = std::filesystem::last_write_time(path);
 			}
 			else {
-				file_watching_map_[path] = std::filesystem::file_time_type::min();
+				file_watching_map_[path.string()] = std::filesystem::file_time_type::min();
 			}
 		}
 	private:
-		std::unordered_map<std::filesystem::path, std::filesystem::file_time_type> file_watching_map_;
+		std::unordered_map<std::string, std::filesystem::file_time_type> file_watching_map_;
 		bool running_;
 		bool IsContain(const std::string& key) {
 			return file_watching_map_.find(key) != file_watching_map_.end();
