@@ -48,6 +48,7 @@ namespace logger {
 	public:
 		explicit YLogger(std::filesystem::path savePath = std::filesystem::current_path()) : savePath_(savePath), finish_(false) {
 			std::thread(printThread);
+			ReadConfig();
 		}
 		~YLogger() {
 			finish_ = true;
@@ -75,19 +76,25 @@ namespace logger {
 				logQueue_.pop();
 				lock.unlock();
 
-				for (const auto& logger : logTypeVector_) {
-					//logger.action()
+				for (const auto& appender : logTypeVector_) {
+					appender->action(log);
 				}
 			}
 		}
 	private:
 		std::queue<Log> logQueue_;
-		std::vector<LoggerType> logTypeVector_;
+		std::vector<std::unique_ptr<Appender>> logTypeVector_;
 		std::filesystem::path savePath_;
 		std::mutex logMutex_;
 		std::condition_variable log_cv;
 
 		bool finish_;
+
+		void ReadConfig() {
+			//파일 읽어서 설정 보고 맞는 appender 객체 생성 및 추가
+
+			logTypeVector_.emplace_back(std::make_unique<ConsoleAppender>());
+		}
 	};
 
 	class Appender {
