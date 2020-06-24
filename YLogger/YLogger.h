@@ -3,14 +3,19 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <ctime>   // localtime
 #include <filesystem>
 #include <functional>
+#include <iomanip> // put_time
 #include <mutex>
 #include <queue>
 #include <sstream>
 #include <thread>
 #include <unordered_map>
 #include <vector>
+
+
+
 
 namespace logger {
 
@@ -56,11 +61,33 @@ namespace logger {
 			oss_.str("");
 			oss_.clear();
 
-			oss_ << "[" << logLevel[(int)log.level()] << "] [" << __func__ << "] : " << log.log() << std::endl;
+			auto now = std::chrono::system_clock::now();
+			std::time_t nowTime = std::chrono::system_clock::to_time_t(now);
+			std::string time(30, '\0');
+
+			std::strftime(&time[0], time.size(), "%H:%M:%S", &localtime(nowTime));
+			auto milliseconds = now - std::chrono::time_point_cast<std::chrono::seconds>(now);
+
+			oss_ << "[" << std::setw(5) << std::setfill(' ') << logLevel[(int)log.level()] << "] [" << __func__ << "] [" << time << "." << std::setw(3) << std::setfill('0') << milliseconds.count() / 10000 << "] : " << log.log() << std::endl;
 			std::cout << oss_.str();
 		}
 	private:
 		std::ostringstream oss_;
+
+		inline std::tm localtime(std::time_t timer)
+		{
+			std::tm bt{};
+#if defined(__unix__)
+			localtime_r(&timer, &bt);
+#elif defined(_MSC_VER)
+			localtime_s(&bt, &timer);
+#else
+			static std::mutex mtx;
+			std::lock_guard<std::mutex> lock(mtx);
+			bt = *std::localtime(&timer);
+#endif
+			return bt;
+		}
 	};
 
 	class YLogger {
@@ -72,7 +99,7 @@ namespace logger {
 					log_cv.wait(lock, [&] {return !logQueue_.empty() || finish_; });
 
 					if (logQueue_.empty() && finish_)
-						break;					
+						break;
 
 					const Log log = logQueue_.front();
 					logQueue_.pop();
