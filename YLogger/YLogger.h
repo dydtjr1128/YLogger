@@ -65,9 +65,15 @@ namespace logger {
 	class YLogger {
 	public:
 		static YLogger* getLogger() {
+			return logger;
+		}
+		static void Initialize() {
 			if (logger == nullptr)
 				logger = new YLogger();
-			return logger;
+		}
+		static void Initialize(std::string configPath) {
+			if (logger == nullptr)
+				logger = new YLogger();
 		}
 		explicit YLogger(std::filesystem::path savePath = std::filesystem::current_path()) : savePath_(savePath), finish_(false), logLevel_(LogLevel::Debug) {
 			loggingThread_ = std::thread([&] {
