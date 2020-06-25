@@ -1,10 +1,4 @@
-﻿#include <iostream>
-
-#include "YLogger.h"
-
-void func() {
-
-}
+﻿#include "YLogger.h"
 
 int main() {
 	system("chcp 949");
