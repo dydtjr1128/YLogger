@@ -15,6 +15,15 @@
 #include <vector>
 
 namespace logger {
+	constexpr const char* file_name(const char* path) {
+		const char* file = path;
+		while (*path) {
+			if (*path++ == '\\') {
+				file = path;
+			}
+		}
+		return file;
+	}
 
 	namespace {
 		constexpr size_t kDefaultFileWatchingTime = 1000;
@@ -191,12 +200,13 @@ namespace logger {
 		}
 	};
 	inline logger::YLogger* getLogger() { return logger::YLogger::getLogger(); }
-#define LOG_TRACE(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL)																  logger->pushLog(logger::LogLevel::Trace,  __FILE__,  __func__, __LINE__, log); }
-#define LOG_DEBUG(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->GetLogLevel() <= (int)logger::LogLevel::Debug) logger->pushLog(logger::LogLevel::Debug,  __FILE__,  __func__, __LINE__, log); }
-#define LOG_INFO(log)  { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->GetLogLevel() <= (int)logger::LogLevel::Info ) logger->pushLog(logger::LogLevel::Info ,  __FILE__,  __func__, __LINE__, log); }
-#define LOG_WARN(log)  { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->GetLogLevel() <= (int)logger::LogLevel::Warn ) logger->pushLog(logger::LogLevel::Warn ,  __FILE__,  __func__, __LINE__, log); }
-#define LOG_ERROR(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->GetLogLevel() <= (int)logger::LogLevel::Error) logger->pushLog(logger::LogLevel::Error,  __FILE__,  __func__, __LINE__, log); }
-#define LOG_FATAL(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->GetLogLevel() <= (int)logger::LogLevel::Fatal) logger->pushLog(logger::LogLevel::Fatal,  __FILE__,  __func__, __LINE__, log); }
+#define __FILE_NAME__ logger::file_name(__FILE__)
+#define LOG_TRACE(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL)																  logger->pushLog(logger::LogLevel::Trace,  __FILE_NAME__,  __func__, __LINE__, log); }
+#define LOG_DEBUG(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->GetLogLevel() <= (int)logger::LogLevel::Debug) logger->pushLog(logger::LogLevel::Debug,  __FILE_NAME__,  __func__, __LINE__, log); }
+#define LOG_INFO(log)  { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->GetLogLevel() <= (int)logger::LogLevel::Info ) logger->pushLog(logger::LogLevel::Info ,  __FILE_NAME__,  __func__, __LINE__, log); }
+#define LOG_WARN(log)  { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->GetLogLevel() <= (int)logger::LogLevel::Warn ) logger->pushLog(logger::LogLevel::Warn ,  __FILE_NAME__,  __func__, __LINE__, log); }
+#define LOG_ERROR(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->GetLogLevel() <= (int)logger::LogLevel::Error) logger->pushLog(logger::LogLevel::Error,  __FILE_NAME__,  __func__, __LINE__, log); }
+#define LOG_FATAL(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->GetLogLevel() <= (int)logger::LogLevel::Fatal) logger->pushLog(logger::LogLevel::Fatal,  __FILE_NAME__,  __func__, __LINE__, log); }
 
 
 	enum class FileStatus {
