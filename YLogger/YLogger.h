@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <functional>
 #include <iomanip> // put_time
+#include <iostream>
 #include <mutex>
 #include <queue>
 #include <sstream>
