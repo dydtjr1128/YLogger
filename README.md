@@ -13,6 +13,14 @@ It can use very easy. Basic settings can be made simply by creating a conig file
 ```cpp
 #include "YLogger.h" // only include single header file
 
+void func1(int i) {
+    LOG_DEBUG("로그 - " + std::to_string(i));
+}
+
+void func2(int i) {
+    LOG_INFO("로그2 - " + std::to_string(i));
+}
+
 int main() {
     system("chcp 949");
     logger::YLogger::Initialize(); // default config
@@ -23,16 +31,18 @@ int main() {
         std::thread tt([i]() {
             // thread-safe log
             if (i % 2 == 0) {
-                LOG_DEBUG("로그" + std::to_string(i));
+                func1(i);
             }
             else {
-                LOG_INFO("로그" + std::to_string(i));
+                func2(i);
             }
             });
         tt.detach();
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(10000));
     LOG_FATAL("로그 종료");
+
+    return 0;
 }
 
 ```
