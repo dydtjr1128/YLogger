@@ -8,7 +8,8 @@ void func() {
 
 int main() {
 	system("chcp 949");
-	//logger::YLogger logger;
+	logger::YLogger::Initialize(); // default config
+	//logger::YLogger::Initialize(".\YLogger.config"); // put config path
 	LOG_DEBUG("로그 1 입니다.");
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	for (int i = 0; i < 1000; i++) {
