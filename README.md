@@ -11,7 +11,7 @@ It can use very easy. Basic settings can be made simply by creating a conig file
 ## Example code
 
 ```cpp
-#include "YLogger.h"
+#include "YLogger.h" // only include single header file
 
 int main() {
     system("chcp 949");
