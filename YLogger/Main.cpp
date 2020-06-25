@@ -26,4 +26,5 @@ int main() {
 		tt.detach();
 	}
 	std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+	LOG_FATAL("로그 종료");
 }
