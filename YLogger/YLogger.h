@@ -6,6 +6,7 @@
 #include <ctime>   // localtime
 #include <filesystem>
 #include <functional>
+#include <fstream>
 #include <iomanip> // put_time
 #include <iostream>
 #include <mutex>
@@ -28,6 +29,20 @@ namespace logger {
 
 	namespace {
 		constexpr size_t kDefaultFileWatchingTime = 1000;
+		inline std::tm localtime(std::time_t timer)
+		{
+			std::tm bt{};
+#if defined(__unix__)
+			localtime_r(&timer, &bt);
+#elif defined(_MSC_VER)
+			localtime_s(&bt, &timer);
+#else
+			static std::mutex mtx;
+			std::lock_guard<std::mutex> lock(mtx);
+			bt = *std::localtime(&timer);
+#endif
+			return bt;
+		}
 	}
 
 	enum class LoggerType {
@@ -64,12 +79,54 @@ namespace logger {
 
 	class ConsoleAppender : public Appender {
 	public:
-
 		void action(const Log& log) {
-
 			std::cout << log.log();
 		}
 	private:
+	};
+
+	class FileAppender : public Appender {
+	public:
+		FileAppender() : logFileNameHeader_("YLogger"), filePath_("./Log") {
+			if (std::filesystem::exists(filePath_) == false) {
+				std::filesystem::create_directories(filePath_);
+			}
+		};
+
+		void action(const Log& log) {
+			logName_ = logFileNameHeader_+ GetTime() + ".log";			
+
+			auto logPath = filePath_ / logName_;
+
+			WriteLog(log, logPath);
+		}
+
+	private:
+		std::string logFileNameHeader_;
+		std::filesystem::path filePath_;
+		std::filesystem::path logName_;
+
+		std::string GetTime() {
+			auto now = std::chrono::system_clock::now();
+			std::time_t nowTime = std::chrono::system_clock::to_time_t(now);
+			std::string time(15, '\0');
+
+			std::strftime(&time[0], time.size(), ".%Y-%m-%d", &localtime(nowTime));
+			return time.substr(0,11);
+		}
+
+		void WriteLog(const Log& log, const std::filesystem::path& path) {
+			std::ofstream writeFile;
+
+			writeFile.open(path.string(), std::ios_base::app);
+
+			if (writeFile.is_open()) {
+				const auto& logLine = log.log();
+				writeFile.write(logLine.c_str(), logLine.size());
+				std::cout << logLine;
+			}
+			writeFile.close();			
+		}
 	};
 
 	class YLogger {
@@ -139,25 +196,10 @@ namespace logger {
 			std::strftime(&time[0], time.size(), "%H:%M:%S", &localtime(nowTime));
 			auto milliseconds = now - std::chrono::time_point_cast<std::chrono::seconds>(now);
 
-			oss_ << "[" << std::setw(5) << std::setfill(' ') << logLevel[(int)level] << "] [" << func << " at " << file << "::" << line << "] [" << time << "." << std::setw(3) << std::setfill('0') << milliseconds.count() / 10000 << "] : " << log << std::endl;
+			oss_ << "[" << std::setw(5) << std::setfill(' ') << logLevel[(int)level] << "] [" << func << " at " << file << "::" << line << "] [" << time.substr(0,8) << "." << std::setw(3) << std::setfill('0') << milliseconds.count() / 10000 << "] : " << log << std::endl;
 			logQueue_.emplace(level, oss_.str());
 			log_cv.notify_one();
 		}
-
-		//void print() {
-		//	while (true) {
-		//		std::unique_lock lock(logMutex_);
-		//		log_cv.wait(lock, [&] {return !logQueue_.empty() || finish_; });
-
-		//		const Log& log = logQueue_.front();
-		//		logQueue_.pop();
-		//		lock.unlock();
-
-		//		for (const auto& appender : logTypeVector_) {
-		//			appender->action(log);
-		//		}
-		//	}
-		//}
 
 		LogLevel GetLogLevel() {
 			return logLevel_;
@@ -178,26 +220,10 @@ namespace logger {
 		LogLevel logLevel_;
 		std::ostringstream oss_;
 
-		inline std::tm localtime(std::time_t timer)
-		{
-			std::tm bt{};
-#if defined(__unix__)
-			localtime_r(&timer, &bt);
-#elif defined(_MSC_VER)
-			localtime_s(&bt, &timer);
-#else
-			static std::mutex mtx;
-			std::lock_guard<std::mutex> lock(mtx);
-			bt = *std::localtime(&timer);
-#endif
-			return bt;
-		}
-
-
 		void ReadConfig() {
 			//파일 읽어서 설정 보고 맞는 appender 객체 생성 및 추가
 
-			logTypeVector_.emplace_back(std::make_unique<ConsoleAppender>());
+			logTypeVector_.emplace_back(std::make_unique<FileAppender>());
 		}
 	};
 	inline logger::YLogger* getLogger() { return logger::YLogger::getLogger(); }
