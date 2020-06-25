@@ -21,6 +21,7 @@ int main() {
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     for (int i = 0; i < 1000; i++) {
         std::thread tt([i]() {
+            // thread-safe log
             if (i % 2 == 0) {
                 LOG_DEBUG("로그" + std::to_string(i));
             }
