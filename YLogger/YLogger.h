@@ -89,13 +89,6 @@ namespace logger {
 				}
 				});
 			ReadConfig();
-			std::thread t([&]() {
-				while (true) {
-					std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-					std::cout << "@@" << logQueue_.size() << std::endl;
-				}
-				});
-			t.detach();
 		}
 		~YLogger() {
 			std::cout << logQueue_.size() << std::endl;
