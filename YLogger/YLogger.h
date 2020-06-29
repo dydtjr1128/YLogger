@@ -221,14 +221,28 @@ namespace logger {
 			log_cv.notify_one();
 		}
 
+		void AddLogger(LoggerType type) {
+			switch (type) {
+			case logger::LoggerType::ConsoleAppender:
+				logTypeVector_.emplace_back(std::make_unique<ConsoleAppender>());
+				break;
+			case logger::LoggerType::FileAppender:
+				logTypeVector_.emplace_back(std::make_unique<FileAppender>());
+				break;
+			case logger::LoggerType::RollingFileAppender:
+				logTypeVector_.emplace_back(std::make_unique<FileAppender>());
+				break;
+			default:
+				break;
+			}
+		}
+
 		LogLevel GetLogLevel() {
 			return logLevel_;
 		}
 
 		static inline YLogger* logger = nullptr;
 	private:
-
-
 		std::thread loggingThread_;
 		std::queue<Log> logQueue_;
 		std::vector<std::unique_ptr<Appender>> logTypeVector_;
