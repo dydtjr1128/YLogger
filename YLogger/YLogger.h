@@ -165,6 +165,8 @@ namespace logger {
 	class YLogger {
 	public:
 		static YLogger* GetLogger() {
+			if(logger == nullptr)
+				logger = std::make_unique<YLogger>();
 			return logger.get();
 		}
 		static void Initialize() {
