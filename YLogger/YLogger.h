@@ -66,6 +66,12 @@ namespace logger {
 		explicit Log(LogLevel level, const std::string& log) :level_(level), log_(log) {};
 		LogLevel level() const { return level_; }
 		std::string log() const { return log_; }
+
+		Log(Log&& rhs) noexcept { // 이동 생성자, 얕은 복사 개념
+			auto start_time = std::chrono::system_clock::now();
+			this->level_ = rhs.level_;
+			this->log_ = rhs.log_;
+		}
 	private:
 		LogLevel level_;
 		std::string log_;
@@ -74,7 +80,7 @@ namespace logger {
 	class Appender {
 	public:
 		virtual void action(const Log& log) = 0;
-		virtual void action(const std::vector<Log> logVector) = 0;
+		virtual void action(const std::vector<Log>& logVector) = 0;
 	private:
 	};
 
@@ -83,7 +89,7 @@ namespace logger {
 		void action(const Log& log) {
 			std::cout << log.log();
 		}
-		void action(const std::vector<Log> logVector) {
+		void action(const std::vector<Log>& logVector) {
 			for (auto& log : logVector) {
 				std::cout << log.log();
 			}
@@ -105,7 +111,7 @@ namespace logger {
 			WriteLog(log, logPath);
 		}
 
-		void action(const std::vector<Log> logVector) {
+		void action(const std::vector<Log>& logVector) {
 			logName_ = logFileNameHeader_ + GetTime() + ".log";
 			auto logPath = filePath_ / logName_;
 			WriteLogs(logVector, logPath);
@@ -136,13 +142,10 @@ namespace logger {
 			}
 			writeFile.close();
 		}
-		void WriteLogs(const std::vector<Log> logVector, const std::filesystem::path& path) {
+		void WriteLogs(const std::vector<Log>& logVector, const std::filesystem::path& path) {
 			std::ofstream writeFile;
 
 			writeFile.open(path.string(), std::ios_base::app);
-			int n = logVector.size();
-			if(n > 1)
-				std::cout << n << std::endl;
 			if (writeFile.is_open()) {
 				for (auto& log : logVector) {
 					const auto& logLine = log.log();
@@ -168,6 +171,7 @@ namespace logger {
 				logger = new YLogger();
 		}
 		explicit YLogger(std::filesystem::path savePath = std::filesystem::current_path()) : savePath_(savePath), finish_(false), logLevel_(LogLevel::Debug) {
+			ReadConfig();
 			loggingThread_ = std::thread([&] {
 				while (true) {
 					std::vector<Log> logVector;
@@ -179,9 +183,10 @@ namespace logger {
 					}
 
 					while (!logQueue_.empty()) {
-						Log log = logQueue_.front();
+						Log& log = logQueue_.front();
+						logVector.push_back(std::move(log)); // push_back(T&& value); 이동 생성자 사용
+
 						logQueue_.pop();
-						logVector.push_back(std::move(log));
 					}
 					lock.unlock();
 
@@ -190,7 +195,6 @@ namespace logger {
 					}
 				}
 				});
-			ReadConfig();
 		}
 		~YLogger() {
 			std::cout << logQueue_.size() << std::endl;
@@ -227,7 +231,6 @@ namespace logger {
 
 			oss_ << "[" << std::setw(5) << std::setfill(' ') << logLevel[(int)level] << "] [" << func << " at " << file << "::" << line << "] [" << time.substr(0, 8) << "." << std::setw(3) << std::setfill('0') << milliseconds.count() / 10000 << "] : " << log << std::endl;
 			logQueue_.emplace(level, oss_.str());
-
 			log_cv.notify_one();
 		}
 
@@ -252,7 +255,7 @@ namespace logger {
 
 		void ReadConfig() {
 			//파일 읽어서 설정 보고 맞는 appender 객체 생성 및 추가
-
+			logTypeVector_.emplace_back(std::make_unique<ConsoleAppender>());
 			logTypeVector_.emplace_back(std::make_unique<FileAppender>());
 		}
 	};
