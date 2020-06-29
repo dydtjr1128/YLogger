@@ -59,6 +59,20 @@ You can use `YLogger` just by initialize it.
 
 ![example_image](./img/FileAppender_example.png)
 
+## Performance
+
+The test is based on an average value of five measurements of the time taken when 100,000 logs were recorded in a single thread.
+
+### SingleThread
+
+```text
+FileAppender write 100,000 lines
+350ms
+
+ConsoleAppender write 100,000 lines
+14767ms
+```
+
 ## TODO
 
 - [ ] Support dynamic config file change(using FileWatcher, `FileWatcher` is already implemented)
