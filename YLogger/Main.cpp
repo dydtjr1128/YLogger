@@ -11,8 +11,12 @@ void func2(int i) {
 int main() {
     system("chcp 949");
     logger::YLogger::Initialize(); // default config
+    logger::YLogger::GetLogger()->AddLogger(logger::LoggerType::FileAppender);
     //logger::YLogger::Initialize(".\YLogger.config"); // put config path
-    LOG_DEBUG("로그 1 입니다.");
+
+    std::cout << "FileAppender write 100,000 lines" << std::endl;
+    logger::SetStartTime();
+
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     for (int i = 0; i < 1000; i++) {
         std::thread tt([i]() {
@@ -25,9 +29,13 @@ int main() {
             }
             });
         tt.detach();
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(10000));
-    LOG_FATAL("로그 종료");
+    }    
+    //LOG_FATAL("로그 종료");
+
+    
+    //for (int i = 1; i <= 100'000; ++i) {
+    //    LOG_INFO("로그2 - " + std::to_string(i));
+    //}
 
     return 0;
 }
