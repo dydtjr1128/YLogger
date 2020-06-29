@@ -204,19 +204,6 @@ namespace logger {
 			std::cout << logQueue_.size() << std::endl;
 		}
 
-		//void Trace(std::string log) { pushLog(LogLevel::Trace, log); };
-		//void Debug(std::string log) { pushLog(LogLevel::Debug, log); };
-		//void Info(std::string log) { pushLog(LogLevel::Info, log); };
-		//void Warn(std::string log) { pushLog(LogLevel::Warn, log); };
-		//void Error(std::string log) { pushLog(LogLevel::Error, log); };
-		//void Fatal(std::string log) { pushLog(LogLevel::Trace, log); };
-
-		//void pushLog(LogLevel level, const std::string& log) {
-		//	std::unique_lock lock(logMutex_);
-
-		//	logQueue_.emplace(level, log);
-		//}
-
 		void pushLog(LogLevel level, std::string file, std::string func, int line, std::string log) {
 			std::unique_lock lock(logMutex_);
 			oss_.str("");
