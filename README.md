@@ -51,9 +51,10 @@ You can use `YLogger` just by initialize it.
 
 ## Sample image
 
-![example_image](./img/example.png)
+![example_image](./img/ConsoleAppender_example.png)
 
 ## TODO
+
 - [ ] Support dynamic config file change(using FileWatcher, `FileWatcher` is already implemented)
 - [ ] Support File Appender
 - [ ] Support Rolling Appender(zip files, clean up...)
