@@ -74,6 +74,7 @@ namespace logger {
 	class Appender {
 	public:
 		virtual void action(const Log& log) = 0;
+		virtual void action(const std::vector<Log> logVector) = 0;
 	private:
 	};
 
@@ -81,6 +82,11 @@ namespace logger {
 	public:
 		void action(const Log& log) {
 			std::cout << log.log();
+		}
+		void action(const std::vector<Log> logVector) {
+			for (auto& log : logVector) {
+				std::cout << log.log();
+			}
 		}
 	private:
 	};
@@ -94,11 +100,15 @@ namespace logger {
 		};
 
 		void action(const Log& log) {
-			logName_ = logFileNameHeader_+ GetTime() + ".log";			
-
+			logName_ = logFileNameHeader_ + GetTime() + ".log";
 			auto logPath = filePath_ / logName_;
-
 			WriteLog(log, logPath);
+		}
+
+		void action(const std::vector<Log> logVector) {
+			logName_ = logFileNameHeader_ + GetTime() + ".log";
+			auto logPath = filePath_ / logName_;
+			WriteLogs(logVector, logPath);
 		}
 
 	private:
@@ -112,7 +122,7 @@ namespace logger {
 			std::string time(15, '\0');
 
 			std::strftime(&time[0], time.size(), ".%Y-%m-%d", &localtime(nowTime));
-			return time.substr(0,11);
+			return time.substr(0, 11);
 		}
 
 		void WriteLog(const Log& log, const std::filesystem::path& path) {
@@ -123,10 +133,25 @@ namespace logger {
 			if (writeFile.is_open()) {
 				const auto& logLine = log.log();
 				writeFile.write(logLine.c_str(), logLine.size());
-				std::cout << logLine;
 			}
-			writeFile.close();			
+			writeFile.close();
 		}
+		void WriteLogs(const std::vector<Log> logVector, const std::filesystem::path& path) {
+			std::ofstream writeFile;
+
+			writeFile.open(path.string(), std::ios_base::app);
+			int n = logVector.size();
+			if(n > 1)
+				std::cout << n << std::endl;
+			if (writeFile.is_open()) {
+				for (auto& log : logVector) {
+					const auto& logLine = log.log();
+					writeFile.write(logLine.c_str(), logLine.size());
+				}
+			}
+			writeFile.close();
+		}
+
 	};
 
 	class YLogger {
@@ -145,6 +170,7 @@ namespace logger {
 		explicit YLogger(std::filesystem::path savePath = std::filesystem::current_path()) : savePath_(savePath), finish_(false), logLevel_(LogLevel::Debug) {
 			loggingThread_ = std::thread([&] {
 				while (true) {
+					std::vector<Log> logVector;
 					std::unique_lock lock(logMutex_);
 					log_cv.wait(lock, [&] {return !logQueue_.empty() || finish_; });
 
@@ -152,12 +178,15 @@ namespace logger {
 						break;
 					}
 
-					const Log log = logQueue_.front();
-					logQueue_.pop();
+					while (!logQueue_.empty()) {
+						Log log = logQueue_.front();
+						logQueue_.pop();
+						logVector.push_back(std::move(log));
+					}
 					lock.unlock();
 
 					for (const auto& appender : logTypeVector_) {
-						appender->action(log);
+						appender->action(logVector);
 					}
 				}
 				});
@@ -196,8 +225,9 @@ namespace logger {
 			std::strftime(&time[0], time.size(), "%H:%M:%S", &localtime(nowTime));
 			auto milliseconds = now - std::chrono::time_point_cast<std::chrono::seconds>(now);
 
-			oss_ << "[" << std::setw(5) << std::setfill(' ') << logLevel[(int)level] << "] [" << func << " at " << file << "::" << line << "] [" << time.substr(0,8) << "." << std::setw(3) << std::setfill('0') << milliseconds.count() / 10000 << "] : " << log << std::endl;
+			oss_ << "[" << std::setw(5) << std::setfill(' ') << logLevel[(int)level] << "] [" << func << " at " << file << "::" << line << "] [" << time.substr(0, 8) << "." << std::setw(3) << std::setfill('0') << milliseconds.count() / 10000 << "] : " << log << std::endl;
 			logQueue_.emplace(level, oss_.str());
+
 			log_cv.notify_one();
 		}
 
