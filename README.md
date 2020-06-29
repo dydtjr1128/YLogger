@@ -51,7 +51,13 @@ You can use `YLogger` just by initialize it.
 
 ## Sample image
 
+### ConsoleAppender
+
 ![example_image](./img/ConsoleAppender_example.png)
+
+### FileAppender
+
+![example_image](./img/FileAppender_example.png)
 
 ## TODO
 
