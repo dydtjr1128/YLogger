@@ -24,10 +24,13 @@ void func2(int i) {
 int main() {
     system("chcp 949");
     logger::YLogger::Initialize(); // default config
+    logger::YLogger::GetLogger()->AddLogger(logger::LoggerType::ConsoleAppender);
     //logger::YLogger::Initialize(".\YLogger.config"); // put config path
-    LOG_DEBUG("로그 1 입니다.");
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    for (int i = 0; i < 1000; i++) {
+
+    std::cout << "FileAppender write 100,000 lines" << std::endl;
+    logger::SetStartTime();
+
+    for (int i = 0; i < 100000; i++) {
         std::thread tt([i]() {
             // thread-safe log
             if (i % 2 == 0) {
@@ -39,12 +42,9 @@ int main() {
             });
         tt.detach();
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(10000));
-    LOG_FATAL("로그 종료");
 
     return 0;
 }
-
 ```
 
 You can use `YLogger` just by initialize it.
