@@ -159,19 +159,20 @@ namespace logger {
 
 	class YLogger {
 	public:
-		static YLogger* getLogger() {
-			return logger;
+		static YLogger* GetLogger() {
+			return logger.get();
 		}
 		static void Initialize() {
 			if (logger == nullptr)
-				logger = new YLogger();
+				logger = std::make_unique<YLogger>();
 		}
 		static void Initialize(std::string configPath) {
 			if (logger == nullptr)
-				logger = new YLogger();
+				logger = std::make_unique<YLogger>(configPath);
 		}
+
 		explicit YLogger(std::filesystem::path savePath = std::filesystem::current_path()) : savePath_(savePath), finish_(false), logLevel_(LogLevel::Debug) {
-			ReadConfig();
+			//ReadConfig();
 			loggingThread_ = std::thread([&] {
 				while (true) {
 					std::vector<Log> logVector;
@@ -197,11 +198,11 @@ namespace logger {
 				});
 		}
 		~YLogger() {
-			std::cout << logQueue_.size() << std::endl;
+			//std::cout << logQueue_.size() << std::endl;
 			finish_ = true;
 			log_cv.notify_all();
 			loggingThread_.join();
-			std::cout << logQueue_.size() << std::endl;
+			//std::cout << logQueue_.size() << std::endl;
 		}
 
 		void pushLog(LogLevel level, std::string file, std::string func, int line, std::string log) {
@@ -241,7 +242,7 @@ namespace logger {
 			return logLevel_;
 		}
 
-		static inline YLogger* logger = nullptr;
+		static inline std::unique_ptr<YLogger> logger = nullptr;
 	private:
 		std::thread loggingThread_;
 		std::queue<Log> logQueue_;
@@ -260,7 +261,7 @@ namespace logger {
 			logTypeVector_.emplace_back(std::make_unique<FileAppender>());
 		}
 	};
-	inline logger::YLogger* getLogger() { return logger::YLogger::getLogger(); }
+	inline logger::YLogger* getLogger() { return logger::YLogger::GetLogger(); }
 #define __FILE_NAME__ logger::file_name(__FILE__)
 #define LOG_TRACE(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL)																  logger->pushLog(logger::LogLevel::Trace,  __FILE_NAME__,  __func__, __LINE__, log); }
 #define LOG_DEBUG(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->GetLogLevel() <= (int)logger::LogLevel::Debug) logger->pushLog(logger::LogLevel::Debug,  __FILE_NAME__,  __func__, __LINE__, log); }
