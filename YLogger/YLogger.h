@@ -157,6 +157,11 @@ namespace logger {
 
 	};
 
+	std::chrono::system_clock::time_point start;
+	void SetStartTime() {
+		start = std::chrono::system_clock::now();
+	}
+
 	class YLogger {
 	public:
 		static YLogger* GetLogger() {
@@ -172,7 +177,6 @@ namespace logger {
 		}
 
 		explicit YLogger(std::filesystem::path savePath = std::filesystem::current_path()) : savePath_(savePath), finish_(false), logLevel_(LogLevel::Debug) {
-			//ReadConfig();
 			loggingThread_ = std::thread([&] {
 				while (true) {
 					std::vector<Log> logVector;
@@ -197,12 +201,11 @@ namespace logger {
 				}
 				});
 		}
-		~YLogger() {
-			//std::cout << logQueue_.size() << std::endl;
+		~YLogger() {						
 			finish_ = true;
 			log_cv.notify_all();
 			loggingThread_.join();
-			//std::cout << logQueue_.size() << std::endl;
+			std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count() << "ms" << std::endl;
 		}
 
 		void pushLog(LogLevel level, std::string file, std::string func, int line, std::string log) {
