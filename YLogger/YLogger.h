@@ -210,7 +210,7 @@ namespace logger {
 			std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count() << "ms" << std::endl;
 		}
 
-		void pushLog(LogLevel level, std::string file, std::string func, int line, std::string log) {
+		inline void pushLog(LogLevel level, std::string file, std::string func, int line, std::string log) {
 			std::unique_lock lock(logMutex_);
 			oss_.str("");
 			oss_.clear();
@@ -233,11 +233,9 @@ namespace logger {
 				logTypeVector_.emplace_back(std::make_unique<ConsoleAppender>());
 				break;
 			case logger::LoggerType::FileAppender:
-				logTypeVector_.emplace_back(std::make_unique<FileAppender>());
-				break;
 			case logger::LoggerType::RollingFileAppender:
 				logTypeVector_.emplace_back(std::make_unique<FileAppender>());
-				break;
+				break;			
 			default:
 				break;
 			}
