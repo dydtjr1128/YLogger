@@ -89,4 +89,5 @@ ConsoleAppender write 100,000 lines
 
 - [ ] Support dynamic config file change(using FileWatcher, `FileWatcher` is already implemented)
 - [ ] Support File Appender
+- [ ] Support Thread pool for multi appender
 - [ ] Support Rolling Appender(zip files, clean up...)
