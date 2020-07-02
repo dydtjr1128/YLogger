@@ -22,15 +22,15 @@ void func2(int i) {
 }
 
 int main() {
-    system("chcp 949");
-    logger::YLogger::Initialize(); // default config
-    logger::YLogger::GetLogger()->AddLogger(logger::LoggerType::ConsoleAppender);
+    //logger::YLogger::Initialize(); // default config, Not essential.
     //logger::YLogger::Initialize(".\YLogger.config"); // put config path
+    logger::YLogger::GetLogger()->AddLogger(logger::LoggerType::ConsoleAppender);
+    logger::YLogger::GetLogger()->AddLogger(logger::LoggerType::FileAppender);
 
     std::cout << "FileAppender write 100,000 lines" << std::endl;
     logger::SetStartTime();
 
-    for (int i = 0; i < 100000; i++) {
+    for (int i = 0; i < 100; i++) {
         std::thread tt([i]() {
             // thread-safe log
             if (i % 2 == 0) {
