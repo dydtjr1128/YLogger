@@ -104,6 +104,16 @@ namespace logger {
 				std::filesystem::create_directories(filePath_);
 			}
 		};
+		explicit FileAppender(std::string logSavePathString) : logFileNameHeader_("YLogger"), filePath_("./Log") {
+
+			if (std::filesystem::exists(logSavePathString)) {
+				filePath_ = std::filesystem::path(logSavePathString) / filePath_;
+			}
+
+			if (std::filesystem::exists(filePath_) == false) {
+				std::filesystem::create_directories(filePath_);
+			}
+		};
 
 		void action(const Log& log) {
 			logName_ = logFileNameHeader_ + GetTime() + ".log";
@@ -241,6 +251,20 @@ namespace logger {
 			}
 		}
 
+		void AddLogger(LoggerType type, std::string logSavePathString) {
+			switch (type) {
+			case logger::LoggerType::ConsoleAppender:
+				logTypeVector_.emplace_back(std::make_unique<ConsoleAppender>());
+				break;
+			case logger::LoggerType::FileAppender:
+			case logger::LoggerType::RollingFileAppender:
+				logTypeVector_.emplace_back(std::make_unique<FileAppender>(logSavePathString));
+				break;
+			default:
+				break;
+			}
+		}
+
 		LogLevel GetLogLevel() {
 			return logLevel_;
 		}
@@ -256,7 +280,7 @@ namespace logger {
 
 		bool finish_;
 		LogLevel logLevel_;
-		std::ostringstream oss_;
+		std::ostringstream oss_;		
 
 		void ReadConfig() {
 			//파일 읽어서 설정 보고 맞는 appender 객체 생성 및 추가
