@@ -1,7 +1,10 @@
 #ifndef YLOGGER_H
 #define YLOGGER_H
 
+#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
+
 #include <chrono>
+#include <codecvt>
 #include <condition_variable>
 #include <ctime>   // localtime
 #include <filesystem>
@@ -9,9 +12,11 @@
 #include <fstream>
 #include <iomanip> // put_time
 #include <iostream>
+#include <locale>
 #include <mutex>
 #include <queue>
 #include <sstream>
+#include <string>
 #include <thread>
 #include <unordered_map>
 #include <vector>
@@ -25,6 +30,20 @@ namespace logger {
 			}
 		}
 		return file;
+	}
+
+	std::string to_utf8(const std::string& ansi)
+	{
+		WCHAR unicode[1500];
+		char utf8[1500];
+
+		memset(unicode, 0, sizeof(unicode));
+		memset(utf8, 0, sizeof(utf8));
+
+		::MultiByteToWideChar(CP_ACP, 0, ansi.c_str(), -1, unicode, sizeof(unicode));
+		::WideCharToMultiByte(CP_UTF8, 0, unicode, -1, utf8, sizeof(utf8), NULL, NULL);
+
+		return std::string(utf8);
 	}
 
 	namespace {
@@ -175,7 +194,7 @@ namespace logger {
 	class YLogger {
 	public:
 		static YLogger* GetLogger() {
-			if(logger == nullptr)
+			if (logger == nullptr)
 				logger = std::make_unique<YLogger>();
 			return logger.get();
 		}
@@ -213,7 +232,7 @@ namespace logger {
 				}
 				});
 		}
-		~YLogger() {						
+		~YLogger() {
 			finish_ = true;
 			log_cv.notify_all();
 			loggingThread_.join();
@@ -233,7 +252,7 @@ namespace logger {
 			auto milliseconds = now - std::chrono::time_point_cast<std::chrono::seconds>(now);
 
 			oss_ << "[" << std::setw(5) << std::setfill(' ') << logLevel[(int)level] << "] [" << func << " at " << file << "::" << line << "] [" << time.substr(0, 8) << "." << std::setw(3) << std::setfill('0') << milliseconds.count() / 10000 << "] : " << log << std::endl;
-			logQueue_.emplace(level, oss_.str());
+			logQueue_.emplace(level, to_utf8(oss_.str()));
 			log_cv.notify_one();
 		}
 
@@ -245,7 +264,7 @@ namespace logger {
 			case logger::LoggerType::FileAppender:
 			case logger::LoggerType::RollingFileAppender:
 				logTypeVector_.emplace_back(std::make_unique<FileAppender>());
-				break;			
+				break;
 			default:
 				break;
 			}
@@ -280,7 +299,7 @@ namespace logger {
 
 		bool finish_;
 		LogLevel logLevel_;
-		std::ostringstream oss_;		
+		std::ostringstream oss_;
 
 		void ReadConfig() {
 			//파일 읽어서 설정 보고 맞는 appender 객체 생성 및 추가

@@ -9,6 +9,7 @@ void func2(int i) {
 }
 
 int main() {
+	system("chcp 65001");
 	//logger::YLogger::Initialize(); // default config, Not essential.
 	//logger::YLogger::Initialize(".\YLogger.config"); // put config path
 	logger::YLogger::GetLogger()->AddLogger(logger::LoggerType::ConsoleAppender);
