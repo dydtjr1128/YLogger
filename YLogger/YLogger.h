@@ -22,38 +22,26 @@
 #include <vector>
 
 namespace logger {
-	constexpr const char* file_name(const char* path) {
-		const char* file = path;
-		while (*path) {
-			if (*path++ == '\\') {
-				file = path;
-			}
-		}
-		return file;
-	}
 
-	std::string to_utf8(const std::string& ansi)
-	{
-		WCHAR unicode[1500];
-		char utf8[1500];
-
-		memset(unicode, 0, sizeof(unicode));
-		memset(utf8, 0, sizeof(utf8));
-
-		::MultiByteToWideChar(CP_ACP, 0, ansi.c_str(), -1, unicode, sizeof(unicode));
-		::WideCharToMultiByte(CP_UTF8, 0, unicode, -1, utf8, sizeof(utf8), NULL, NULL);
-
-		return std::string(utf8);
-	}
 
 	namespace {
 		constexpr size_t kDefaultFileWatchingTime = 1000;
-		inline std::tm localtime(std::time_t timer)
-		{
+
+		constexpr const char* file_name(const char* path) {
+			const char* file = path;
+			while (*path) {
+				if (*path++ == '\\') {
+					file = path;
+				}
+			}
+			return file;
+		}
+
+		inline std::tm localtime(std::time_t timer)	{
 			std::tm bt{};
 #if defined(__unix__)
 			localtime_r(&timer, &bt);
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER) && defined(_WIN32)
 			localtime_s(&bt, &timer);
 #else
 			static std::mutex mtx;
@@ -62,6 +50,8 @@ namespace logger {
 #endif
 			return bt;
 		}
+
+		std::string logLevel[] = { "Trace", "Debug", "Info", "Warn", "Error", "Fatal" };
 	}
 
 	enum class LoggerType {
@@ -78,7 +68,6 @@ namespace logger {
 		Error,
 		Fatal
 	};
-	std::string logLevel[] = { "Trace", "Debug", "Info", "Warn", "Error", "Fatal" };
 
 	class Log {
 	public:
@@ -156,7 +145,8 @@ namespace logger {
 			std::time_t nowTime = std::chrono::system_clock::to_time_t(now);
 			std::string time(15, '\0');
 
-			std::strftime(&time[0], time.size(), ".%Y-%m-%d", &localtime(nowTime));
+			auto lt = localtime(nowTime);
+			std::strftime(&time[0], time.size(), ".%Y-%m-%d", &lt);
 			return time.substr(0, 11);
 		}
 
@@ -248,11 +238,12 @@ namespace logger {
 			std::time_t nowTime = std::chrono::system_clock::to_time_t(now);
 			std::string time(30, '\0');
 
-			std::strftime(&time[0], time.size(), "%H:%M:%S", &localtime(nowTime));
+			auto lt = localtime(nowTime);
+			std::strftime(&time[0], time.size(), "%H:%M:%S", &lt);
 			auto milliseconds = now - std::chrono::time_point_cast<std::chrono::seconds>(now);
 
 			oss_ << "[" << std::setw(5) << std::setfill(' ') << logLevel[(int)level] << "] [" << func << " at " << file << "::" << line << "] [" << time.substr(0, 8) << "." << std::setw(3) << std::setfill('0') << milliseconds.count() / 10000 << "] : " << log << std::endl;
-			logQueue_.emplace(level, to_utf8(oss_.str()));
+			logQueue_.emplace(level, oss_.str());
 			log_cv.notify_one();
 		}
 

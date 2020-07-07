@@ -15,7 +15,7 @@ int main() {
 	logger::YLogger::GetLogger()->AddLogger(logger::LoggerType::ConsoleAppender);
 	logger::YLogger::GetLogger()->AddLogger(logger::LoggerType::FileAppender);
 
-	std::cout << "FileAppender write 100,000 lines" << std::endl;
+	std::cout << "FileAppender write 100 lines" << std::endl;
 	logger::SetStartTime();
 
 	for (int i = 0; i < 100; i++) {
