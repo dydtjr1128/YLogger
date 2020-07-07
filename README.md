@@ -23,11 +23,21 @@ void func2(int i) {
 
 int main() {
     system("chcp 949");
-    //logger::YLogger::Initialize(); // Default config, Not essential. default is logger::LogLevel::Debug
-    logger::YLogger::Initialize(logger::LogLevel::Info); // Set logger level
+
+    // Default config, Not essential. default is logger::LogLevel::Debug
+    //logger::YLogger::Initialize(); 
+
+    // Set logger level logger::LogLevel::Info. So, The logger does not show logs below the info level.
+    logger::YLogger::Initialize(logger::LogLevel::Info); 
+
+    // Set logger to console
     logger::YLogger::GetLogger()->AddLogger(logger::LoggerType::ConsoleAppender);
-    logger::YLogger::GetLogger()->AddLogger(logger::LoggerType::FileAppender); // Default save ./Log
-    logger::YLogger::GetLogger()->AddLogger (logger::LoggerType::FileAppender, "./temp2"); // Set save log file path
+
+    // Default save ./Log
+    logger::YLogger::GetLogger()->AddLogger(logger::LoggerType::FileAppender);
+
+    // Set save log file path
+    logger::YLogger::GetLogger()->AddLogger(logger::LoggerType::FileAppender, "./temp2");
 
     std::cout << "FileAppender write 100 lines" << std::endl;
 
