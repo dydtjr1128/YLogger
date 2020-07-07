@@ -25,6 +25,9 @@ namespace logger {
 
 
 	namespace {
+		const std::string logLevelString[] = { "Trace", "Debug", "Info", "Warn", "Error", "Fatal" };
+		const std::string kDefaultLogSavePathString = "./Log";
+		const std::string kDefaultlogFileNameHeader = "YLogger";
 		constexpr size_t kDefaultFileWatchingTime = 1000;
 
 		constexpr const char* file_name(const char* path) {
@@ -37,7 +40,7 @@ namespace logger {
 			return file;
 		}
 
-		inline std::tm localtime(std::time_t timer)	{
+		inline std::tm localtime(std::time_t timer) {
 			std::tm bt{};
 #if defined(__unix__)
 			localtime_r(&timer, &bt);
@@ -50,8 +53,6 @@ namespace logger {
 #endif
 			return bt;
 		}
-
-		std::string logLevel[] = { "Trace", "Debug", "Info", "Warn", "Error", "Fatal" };
 	}
 
 	enum class LoggerType {
@@ -88,7 +89,7 @@ namespace logger {
 	class Appender {
 	public:
 		virtual void action(const Log& log) = 0;
-		virtual void action(const std::vector<Log>& logVector) = 0;
+		virtual void actions(const std::vector<Log>& logVector) = 0;
 	private:
 	};
 
@@ -97,7 +98,7 @@ namespace logger {
 		void action(const Log& log) {
 			std::cout << log.log();
 		}
-		void action(const std::vector<Log>& logVector) {
+		void actions(const std::vector<Log>& logVector) {
 			for (auto& log : logVector) {
 				std::cout << log.log();
 			}
@@ -107,32 +108,20 @@ namespace logger {
 
 	class FileAppender : public Appender {
 	public:
-		FileAppender() : logFileNameHeader_("YLogger"), filePath_("./Log") {
-			if (std::filesystem::exists(filePath_) == false) {
-				std::filesystem::create_directories(filePath_);
-			}
-		};
-		explicit FileAppender(std::string logSavePathString) : logFileNameHeader_("YLogger"), filePath_("./Log") {
-
-			if (std::filesystem::exists(logSavePathString)) {
-				filePath_ = std::filesystem::path(logSavePathString) / filePath_;
-			}
-
+		explicit FileAppender(const std::string& logSavePathString = kDefaultLogSavePathString) : logFileNameHeader_(kDefaultlogFileNameHeader), filePath_(logSavePathString) {
 			if (std::filesystem::exists(filePath_) == false) {
 				std::filesystem::create_directories(filePath_);
 			}
 		};
 
 		void action(const Log& log) {
-			logName_ = logFileNameHeader_ + GetTime() + ".log";
-			auto logPath = filePath_ / logName_;
-			WriteLog(log, logPath);
+			logName_ = logFileNameHeader_ + GetTodayTimeFormatString() + ".log";
+			WriteLog(log, filePath_ / logName_);
 		}
 
-		void action(const std::vector<Log>& logVector) {
-			logName_ = logFileNameHeader_ + GetTime() + ".log";
-			auto logPath = filePath_ / logName_;
-			WriteLogs(logVector, logPath);
+		void actions(const std::vector<Log>& logVector) {
+			logName_ = logFileNameHeader_ + GetTodayTimeFormatString() + ".log";
+			WriteLogs(logVector, filePath_ / logName_);
 		}
 
 	private:
@@ -140,7 +129,7 @@ namespace logger {
 		std::filesystem::path filePath_;
 		std::filesystem::path logName_;
 
-		std::string GetTime() {
+		std::string GetTodayTimeFormatString() {
 			auto now = std::chrono::system_clock::now();
 			std::time_t nowTime = std::chrono::system_clock::to_time_t(now);
 			std::string time(15, '\0');
@@ -176,30 +165,24 @@ namespace logger {
 
 	};
 
-	std::chrono::system_clock::time_point start;
-	void SetStartTime() {
-		start = std::chrono::system_clock::now();
-	}
-
 	class YLogger {
 	public:
 		static YLogger* GetLogger() {
-			if (logger == nullptr)
+			if (logger == nullptr) {
 				logger = std::make_unique<YLogger>();
+			}
 			return logger.get();
 		}
-		static void Initialize() {
-			if (logger == nullptr)
-				logger = std::make_unique<YLogger>();
-		}
-		static void Initialize(std::string configPath) {
-			if (logger == nullptr)
-				logger = std::make_unique<YLogger>(configPath);
+
+		static void Initialize(logger::LogLevel loggerLevel = LogLevel::Debug) {
+			if (logger == nullptr) {
+				logger = std::make_unique<YLogger>(loggerLevel);
+			}
 		}
 
-		explicit YLogger(std::filesystem::path savePath = std::filesystem::current_path()) : savePath_(savePath), finish_(false), logLevel_(LogLevel::Debug) {
+		explicit YLogger(logger::LogLevel loggerLevel = LogLevel::Debug) : finish_(false), loggerLevel_(loggerLevel) {
 			loggingThread_ = std::thread([&] {
-				while (true) {
+				while (true) { // save multi log at one loop
 					std::vector<Log> logVector;
 					std::unique_lock lock(logMutex_);
 					log_cv.wait(lock, [&] {return !logQueue_.empty() || finish_; });
@@ -217,16 +200,18 @@ namespace logger {
 					lock.unlock();
 
 					for (const auto& appender : logTypeVector_) {
-						appender->action(logVector);
+						appender->actions(logVector);
 					}
 				}
 				});
 		}
+
+		// YLogger instance is unique_ptr. So it will be deleted when the function that first called initialize function (such as the main function) is finish.
+		// like -> logger::YLogger::GetLogger()->AddLogger(logger::LoggerType::ConsoleAppender);
 		~YLogger() {
 			finish_ = true;
 			log_cv.notify_all();
 			loggingThread_.join();
-			std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count() << "ms" << std::endl;
 		}
 
 		inline void pushLog(LogLevel level, std::string file, std::string func, int line, std::string log) {
@@ -240,28 +225,14 @@ namespace logger {
 
 			auto lt = localtime(nowTime);
 			std::strftime(&time[0], time.size(), "%H:%M:%S", &lt);
-			auto milliseconds = now - std::chrono::time_point_cast<std::chrono::seconds>(now);
+			auto milliseconds = now - std::chrono::time_point_cast<std::chrono::seconds>(now); // calc millisecond
 
-			oss_ << "[" << std::setw(5) << std::setfill(' ') << logLevel[(int)level] << "] [" << func << " at " << file << "::" << line << "] [" << time.substr(0, 8) << "." << std::setw(3) << std::setfill('0') << milliseconds.count() / 10000 << "] : " << log << std::endl;
+			oss_ << "[" << std::setw(5) << std::setfill(' ') << logLevelString[(int)level] << "] [" << func << " at " << file << "::" << line << "] [" << time.substr(0, 8) << "." << std::setw(3) << std::setfill('0') << milliseconds.count() / 10000 << "] : " << log << std::endl;
 			logQueue_.emplace(level, oss_.str());
 			log_cv.notify_one();
 		}
 
-		void AddLogger(LoggerType type) {
-			switch (type) {
-			case logger::LoggerType::ConsoleAppender:
-				logTypeVector_.emplace_back(std::make_unique<ConsoleAppender>());
-				break;
-			case logger::LoggerType::FileAppender:
-			case logger::LoggerType::RollingFileAppender:
-				logTypeVector_.emplace_back(std::make_unique<FileAppender>());
-				break;
-			default:
-				break;
-			}
-		}
-
-		void AddLogger(LoggerType type, std::string logSavePathString) {
+		void AddLogger(const LoggerType type, const std::string& logSavePathString = kDefaultLogSavePathString) {
 			switch (type) {
 			case logger::LoggerType::ConsoleAppender:
 				logTypeVector_.emplace_back(std::make_unique<ConsoleAppender>());
@@ -275,8 +246,8 @@ namespace logger {
 			}
 		}
 
-		LogLevel GetLogLevel() {
-			return logLevel_;
+		LogLevel loggerLevel() const {
+			return loggerLevel_;
 		}
 
 		static inline std::unique_ptr<YLogger> logger = nullptr;
@@ -284,12 +255,11 @@ namespace logger {
 		std::thread loggingThread_;
 		std::queue<Log> logQueue_;
 		std::vector<std::unique_ptr<Appender>> logTypeVector_;
-		std::filesystem::path savePath_;
 		std::mutex logMutex_;
 		std::condition_variable log_cv;
 
 		bool finish_;
-		LogLevel logLevel_;
+		LogLevel loggerLevel_;
 		std::ostringstream oss_;
 
 		void ReadConfig() {
@@ -300,12 +270,12 @@ namespace logger {
 	};
 	inline logger::YLogger* getLogger() { return logger::YLogger::GetLogger(); }
 #define __FILE_NAME__ logger::file_name(__FILE__)
-#define LOG_TRACE(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL)																  logger->pushLog(logger::LogLevel::Trace,  __FILE_NAME__,  __func__, __LINE__, log); }
-#define LOG_DEBUG(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->GetLogLevel() <= (int)logger::LogLevel::Debug) logger->pushLog(logger::LogLevel::Debug,  __FILE_NAME__,  __func__, __LINE__, log); }
-#define LOG_INFO(log)  { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->GetLogLevel() <= (int)logger::LogLevel::Info ) logger->pushLog(logger::LogLevel::Info ,  __FILE_NAME__,  __func__, __LINE__, log); }
-#define LOG_WARN(log)  { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->GetLogLevel() <= (int)logger::LogLevel::Warn ) logger->pushLog(logger::LogLevel::Warn ,  __FILE_NAME__,  __func__, __LINE__, log); }
-#define LOG_ERROR(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->GetLogLevel() <= (int)logger::LogLevel::Error) logger->pushLog(logger::LogLevel::Error,  __FILE_NAME__,  __func__, __LINE__, log); }
-#define LOG_FATAL(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->GetLogLevel() <= (int)logger::LogLevel::Fatal) logger->pushLog(logger::LogLevel::Fatal,  __FILE_NAME__,  __func__, __LINE__, log); }
+#define LOG_TRACE(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL)															   logger->pushLog(logger::LogLevel::Trace,  __FILE_NAME__,  __func__, __LINE__, log); }
+#define LOG_DEBUG(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->loggerLevel() <= (int)logger::LogLevel::Debug) logger->pushLog(logger::LogLevel::Debug,  __FILE_NAME__,  __func__, __LINE__, log); }
+#define LOG_INFO(log)  { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->loggerLevel() <= (int)logger::LogLevel::Info ) logger->pushLog(logger::LogLevel::Info ,  __FILE_NAME__,  __func__, __LINE__, log); }
+#define LOG_WARN(log)  { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->loggerLevel() <= (int)logger::LogLevel::Warn ) logger->pushLog(logger::LogLevel::Warn ,  __FILE_NAME__,  __func__, __LINE__, log); }
+#define LOG_ERROR(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->loggerLevel() <= (int)logger::LogLevel::Error) logger->pushLog(logger::LogLevel::Error,  __FILE_NAME__,  __func__, __LINE__, log); }
+#define LOG_FATAL(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->loggerLevel() <= (int)logger::LogLevel::Fatal) logger->pushLog(logger::LogLevel::Fatal,  __FILE_NAME__,  __func__, __LINE__, log); }
 
 
 	enum class FileStatus {
