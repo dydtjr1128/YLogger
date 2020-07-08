@@ -72,8 +72,8 @@ namespace logger {
 
 	class Log {
 	public:
-		explicit Log(LogLevel level, const std::string& log) :level_(level), log_(log) {};
-		LogLevel level() const { return level_; }
+		explicit Log(logger::LogLevel level, const std::string& log) :level_(level), log_(log) {};
+		logger::LogLevel level() const { return level_; }
 		std::string log() const { return log_; }
 
 		Log(Log&& rhs) noexcept { // 이동 생성자, 얕은 복사 개념
@@ -82,7 +82,7 @@ namespace logger {
 			this->log_ = rhs.log_;
 		}
 	private:
-		LogLevel level_;
+		logger::LogLevel level_;
 		std::string log_;
 	};
 
@@ -174,16 +174,16 @@ namespace logger {
 			return logger.get();
 		}
 
-		static void Initialize(logger::LogLevel loggerLevel = LogLevel::Debug) {
+		static void Initialize(logger::LogLevel loggerLevel = logger::LogLevel::Debug) {
 			if (logger == nullptr) {
 				logger = std::make_unique<YLogger>(loggerLevel);
 			}
 		}
 
-		explicit YLogger(logger::LogLevel loggerLevel = LogLevel::Debug) : finish_(false), loggerLevel_(loggerLevel) {
+		explicit YLogger(logger::LogLevel loggerLevel = logger::LogLevel::Debug) : finish_(false), loggerLevel_(loggerLevel) {
 			loggingThread_ = std::thread([&] {
 				while (true) { // save multi log at one loop
-					std::vector<Log> logVector;
+					std::vector<logger::Log> logVector;
 					std::unique_lock lock(logMutex_);
 					log_cv.wait(lock, [&] {return !logQueue_.empty() || finish_; });
 
@@ -214,7 +214,7 @@ namespace logger {
 			loggingThread_.join();
 		}
 
-		inline void pushLog(LogLevel level, std::string file, std::string func, int line, std::string log) {
+		inline void pushLog(logger::LogLevel level, std::string file, std::string func, int line, std::string log) {
 			std::unique_lock lock(logMutex_);
 			oss_.str("");
 			oss_.clear();
@@ -246,7 +246,7 @@ namespace logger {
 			}
 		}
 
-		LogLevel loggerLevel() const {
+		logger::LogLevel loggerLevel() const {
 			return loggerLevel_;
 		}
 
@@ -259,7 +259,7 @@ namespace logger {
 		std::condition_variable log_cv;
 
 		bool finish_;
-		LogLevel loggerLevel_;
+		logger::LogLevel loggerLevel_;
 		std::ostringstream oss_;
 
 		void ReadConfig() {
@@ -278,48 +278,56 @@ namespace logger {
 #define LOG_FATAL(log) { logger::YLogger* logger = logger::getLogger(); if (logger != NULL && (int)logger->loggerLevel() <= (int)logger::LogLevel::Fatal) logger->pushLog(logger::LogLevel::Fatal,  __FILE_NAME__,  __func__, __LINE__, log); }
 
 
-	enum class FileStatus {
-		Created,
-		Modified,
-		Erased
-	};
+	namespace watcher {
+		namespace {
+			constexpr int kDefaultFileWatchingTime = 500;
+		}
+		enum class FileStatus {
+			Created,
+			Modified,
+			Erased,
+		};
 
-	class FileWatchar {
-	public:
-		FileWatchar() :running_(true) {}
-		void start(std::function<void(std::filesystem::path, FileStatus)> function) {
-			while (running_) {
-				std::this_thread::sleep_for(std::chrono::milliseconds(kDefaultFileWatchingTime));
+		class FileWatchar {
+		public:
+			FileWatchar() :running_(true) {}
+			void start(std::function<void(std::filesystem::path, FileStatus)> function) {
+				while (running_) {
+					std::this_thread::sleep_for(std::chrono::milliseconds(kDefaultFileWatchingTime));
 
-				for (const auto& it : file_watching_map_) {
-					if (std::filesystem::exists(it.first) == false) {
-						function(std::filesystem::path(it.first), FileStatus::Erased);
-					}
-					else if (it.second == std::filesystem::file_time_type::min() && std::filesystem::exists(it.first)) {
-						function(std::filesystem::path(it.first), FileStatus::Created);
-					}
-					else if (it.second != std::filesystem::last_write_time(it.first)) {
-						function(std::filesystem::path(it.first), FileStatus::Modified);
+					for (const auto& it : file_watching_map_) {
+						bool exist = std::filesystem::exists(it.first);
+						if (exist) {
+							if (it.second == std::filesystem::file_time_type::min()) {
+								function(std::filesystem::path(it.first), FileStatus::Created);
+							}
+							else if (it.second != std::filesystem::last_write_time(it.first)) {
+								function(std::filesystem::path(it.first), FileStatus::Modified);
+							}
+							file_watching_map_[it.first] = std::filesystem::last_write_time(it.first);
+						}
+						else if (it.second != std::filesystem::file_time_type::min()) {
+							file_watching_map_[it.first] = std::filesystem::file_time_type::min();
+							function(std::filesystem::path(it.first), FileStatus::Erased);
+						}
 					}
 				}
+			}
+			void addPath(std::filesystem::path path) {
+				if (std::filesystem::exists(path)) {
+					file_watching_map_[path.string()] = std::filesystem::last_write_time(path);
+				}
+				else {
+					file_watching_map_[path.string()] = std::filesystem::file_time_type::min();
+				}
+			}
+		private:
+			std::unordered_map<std::string, std::filesystem::file_time_type> file_watching_map_;
 
-			}
-		}
-		void addPath(std::filesystem::path path) {
-			if (std::filesystem::exists(path)) {
-				file_watching_map_[path.string()] = std::filesystem::last_write_time(path);
-			}
-			else {
-				file_watching_map_[path.string()] = std::filesystem::file_time_type::min();
-			}
-		}
-	private:
-		std::unordered_map<std::string, std::filesystem::file_time_type> file_watching_map_;
-		bool running_;
-		bool IsContain(const std::string& key) {
-			return file_watching_map_.find(key) != file_watching_map_.end();
-		}
-	};
+			bool running_;
+
+		};
+	}
 }
 
 #endif // !YLOGGER_H
