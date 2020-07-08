@@ -64,11 +64,23 @@ You can use `YLogger` just by initialize it.
 
 ### ConsoleAppender
 
+#### windows
+
 ![example_image](./img/ConsoleAppender_example.png)
+
+#### ubnutu
+
+![example_image](./img/ubuntu_ConsoleAppender_example.png)
 
 ### FileAppender
 
+#### windows
+
 ![example_image](./img/FileAppender_example.png)
+
+#### ubnutu
+
+![example_image](./img/ubuntu_FileAppender_example.png)
 
 ## Performance
 
