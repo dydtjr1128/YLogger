@@ -62,25 +62,26 @@ You can use `YLogger` just by initialize it.
 
 ## Sample image
 
-### ConsoleAppender
+There are some sample images.
+g++ build with `g++ Main.cpp YLogger.h -std=c++17 -pthread -o ylogger_example.out` command.
 
-#### windows
+### Windows ConsoleAppender
 
 ![example_image](./img/ConsoleAppender_example.png)
 
-#### ubnutu
+### Ubnutu ConsoleAppender
 
 ![example_image](./img/ubuntu_ConsoleAppender_example.png)
 
-### FileAppender
-
-#### windows
+### Windows FileAppender
 
 ![example_image](./img/FileAppender_example.png)
 
-#### ubnutu
+### Ubnutu FileAppender
 
 ![example_image](./img/ubuntu_FileAppender_example.png)
+
+---
 
 ## Performance
 
