@@ -8,6 +8,17 @@ Also `YLogger` is thread-safe, fast, light.
 
 It can use very easy. Basic settings can be made simply by creating a conig file.
 
+
+## Feature
+
+- Support FileAppender/ConsoleAppender
+- Support log file save path
+- Fast
+- Easy to use
+- Simple
+- Single header
+
+
 ## Example code
 
 ```cpp
@@ -111,7 +122,5 @@ ConsoleAppender write 100,000 lines
 
 ## TODO
 
-- [ ] Support dynamic config file change(using FileWatcher, `FileWatcher` is already implemented)
-- [ ] Support File Appender
 - [ ] Support Thread pool for multi appender
 - [ ] Support Rolling Appender(zip files, clean up...)
