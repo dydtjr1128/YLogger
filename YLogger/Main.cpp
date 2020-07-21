@@ -9,13 +9,13 @@ void func2(int i) {
 }
 
 int main() {
-	system("chcp 949");
+	//system("chcp 949");
 	//logger::YLogger::Initialize(); // Default config, Not essential. default is logger::LogLevel::Debug
 	logger::YLogger::Initialize(logger::LogLevel::Info); // Set logger level
 	logger::YLogger::GetLogger()->AddLogger(logger::LoggerType::ConsoleAppender);
-	logger::YLogger::GetLogger()->AddLogger(logger::LoggerType::FileAppender, "./temp2");
+	logger::YLogger::GetLogger()->AddLogger(logger::LoggerType::FileAppender, "./temp2", "Hello");
 
-	std::cout << "FileAppender write 100 lines" << std::endl;
+	std::cout << "Write 100 lines" << std::endl;
 
 	for (int i = 0; i < 100; i++) {
 		std::thread tt([i]() {
