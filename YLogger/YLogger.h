@@ -108,7 +108,7 @@ namespace logger {
 
 	class FileAppender : public Appender {
 	public:
-		explicit FileAppender(const std::string& logSavePathString = kDefaultLogSavePathString) : logFileNameHeader_(kDefaultlogFileNameHeader), filePath_(logSavePathString) {
+		explicit FileAppender(const std::string& logSavePathString = kDefaultLogSavePathString, const std::string& logFileNameHeader = kDefaultlogFileNameHeader) : filePath_(logSavePathString), logFileNameHeader_(logFileNameHeader) {
 			if (std::filesystem::exists(filePath_) == false) {
 				std::filesystem::create_directories(filePath_);
 			}
@@ -168,9 +168,6 @@ namespace logger {
 	class YLogger {
 	public:
 		static YLogger* GetLogger() {
-			if (logger == nullptr) {
-				logger = std::make_unique<YLogger>();
-			}
 			return logger.get();
 		}
 
@@ -181,6 +178,7 @@ namespace logger {
 		}
 
 		explicit YLogger(logger::LogLevel loggerLevel = logger::LogLevel::Debug) : finish_(false), loggerLevel_(loggerLevel) {
+			std::cout << "YLogger create" << std::endl;
 			loggingThread_ = std::thread([&] {
 				while (true) { // save multi log at one loop
 					std::vector<logger::Log> logVector;
@@ -232,14 +230,14 @@ namespace logger {
 			log_cv.notify_one();
 		}
 
-		void AddLogger(const LoggerType type, const std::string& logSavePathString = kDefaultLogSavePathString) {
+		void AddLogger(const LoggerType type, const std::string& logSavePathString = kDefaultLogSavePathString, const std::string& logFileNameHeader = kDefaultlogFileNameHeader) {
 			switch (type) {
 			case logger::LoggerType::ConsoleAppender:
 				logTypeVector_.emplace_back(std::make_unique<ConsoleAppender>());
 				break;
 			case logger::LoggerType::FileAppender:
 			case logger::LoggerType::RollingFileAppender:
-				logTypeVector_.emplace_back(std::make_unique<FileAppender>(logSavePathString));
+				logTypeVector_.emplace_back(std::make_unique<FileAppender>(logSavePathString, logFileNameHeader));
 				break;
 			default:
 				break;
@@ -250,7 +248,7 @@ namespace logger {
 			return loggerLevel_;
 		}
 
-		static inline std::unique_ptr<YLogger> logger = nullptr;
+		static inline std::unique_ptr<YLogger> logger = std::make_unique<YLogger>();
 	private:
 		std::thread loggingThread_;
 		std::queue<Log> logQueue_;
